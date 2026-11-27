@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <title>옥상 대난투</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Do+Hyeon&display=swap" rel="stylesheet">
@@ -12,7 +12,16 @@
    PICTURE: 게임 화면 자체가 그림
    COLOUR/TYPE: 노을 주황·보라, 네온 시안 / Black Han Sans
    LAYOUT: 16:9 캔버스를 화면에 꽉 맞춤 */
-html,body{margin:0;height:100%;background:#0a0714;overflow:hidden}
+html,body{margin:0;height:100%;background:#0a0714;overflow:hidden;touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+#tc{position:fixed;inset:0;pointer-events:none;z-index:20;display:none;font-family:'Black Han Sans',sans-serif}
+#tc .b{position:absolute;pointer-events:auto;border-radius:50%;background:rgba(255,255,255,.16);border:2px solid rgba(255,255,255,.35);color:rgba(255,255,255,.9);display:flex;align-items:center;justify-content:center;text-align:center;font-size:min(3.4vmin,17px);line-height:1.1;-webkit-tap-highlight-color:transparent;backdrop-filter:blur(2px)}
+#tc .b.on{background:rgba(255,210,63,.45);border-color:#ffd23f;color:#16121f}
+#tc .s{border-radius:12px;font-size:min(2.8vmin,14px)}
+#tc #stick{position:absolute;pointer-events:auto;left:max(3vmin,env(safe-area-inset-left));bottom:5vmin;width:32vmin;height:32vmin;max-width:190px;max-height:190px;border-radius:50%;background:rgba(255,255,255,.10);border:2px solid rgba(255,255,255,.28)}
+#tc #knob{position:absolute;left:50%;top:50%;width:42%;height:42%;margin:-21% 0 0 -21%;border-radius:50%;background:rgba(255,255,255,.35);border:2px solid rgba(255,255,255,.6)}
+#tc #pad{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);display:none;grid-template-columns:repeat(3,13vmin);gap:2vmin;pointer-events:auto}
+#tc #pad .b{position:static;width:13vmin;height:13vmin;font-size:4.5vmin}
+#rot{position:fixed;inset:0;z-index:30;display:none;align-items:center;justify-content:center;background:rgba(10,7,20,.94);color:#ffd23f;font:24px 'Black Han Sans',sans-serif;text-align:center}
 canvas{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);display:block;outline:none}
 </style>
 </head>
@@ -1641,6 +1650,45 @@ function simStep(dt){
   checkHits();updateProjs(dt);if(G.state==='fight'||G.state==='gameover')checkKO();if(G.state==='fight')G.matchT=(G.matchT||0)+dt;if(G.mode==='tut')tutTick(dt);
   for(const k in taps)delete taps[k];
 }
+/* ===== touch controls ===== */
+const TC={on:false,mode:'',held:{},el:null};
+function tKey(code,down){if(down){if(TC.held[code])return;TC.held[code]=1;dispatchEvent(new KeyboardEvent('keydown',{code,key:code}));}else{if(!TC.held[code])return;delete TC.held[code];dispatchEvent(new KeyboardEvent('keyup',{code,key:code}));}}
+function tInit(){if(TC.el)return;const d=document.createElement('div');d.id='tc';d.innerHTML=`<div id="stick"><div id="knob"></div></div>
+ <div class="b" id="bA" style="right:4vmin;bottom:7vmin;width:17vmin;height:17vmin;max-width:104px;max-height:104px">공격</div>
+ <div class="b" id="bB" style="right:23vmin;bottom:3vmin;width:14vmin;height:14vmin;max-width:86px;max-height:86px">필살</div>
+ <div class="b" id="bJ" style="right:7vmin;bottom:27vmin;width:14vmin;height:14vmin;max-width:86px;max-height:86px">점프</div>
+ <div class="b" id="bS" style="right:25vmin;bottom:20vmin;width:12vmin;height:12vmin;max-width:74px;max-height:74px">방어</div>
+ <div class="b s" id="bP" style="right:3vmin;top:3vmin;width:14vmin;height:8vmin">❚❚ 멈춤</div>
+ <div class="b s" id="bQ" style="left:3vmin;top:3vmin;width:14vmin;height:8vmin">캐릭터</div>
+ <div class="b s" id="bR" style="left:19vmin;top:3vmin;width:14vmin;height:8vmin">초기화</div>
+ <div class="b s" id="bE" style="left:35vmin;top:3vmin;width:14vmin;height:8vmin">조작법</div>
+ <div class="b s" id="bY" style="right:3vmin;top:3vmin;width:13vmin;height:8vmin;opacity:.25">?</div>
+ <div id="pad"></div>`;document.body.appendChild(d);TC.el=d;
+  const rot=document.createElement('div');rot.id='rot';rot.innerHTML='📱↻<br>화면을 가로로 돌려 주세요';document.body.appendChild(rot);TC.rot=rot;
+  const pad=d.querySelector('#pad');['1','2','3','4','5','6','7','8','9','⌫','0','확인'].forEach(k=>{const b=document.createElement('div');b.className='b s';b.textContent=k;b.dataset.code=k==='⌫'?'Backspace':k==='확인'?'Enter':'Digit'+k;pad.appendChild(b);});
+  const bind=(el,codeFn)=>{el.addEventListener('pointerdown',e=>{e.preventDefault();el.setPointerCapture(e.pointerId);el.classList.add('on');const c=codeFn();el.dataset.cur=c;tKey(c,true);});
+    const up=e=>{el.classList.remove('on');const c=el.dataset.cur;if(c)tKey(c,false);el.dataset.cur='';};el.addEventListener('pointerup',up);el.addEventListener('pointercancel',up);el.addEventListener('lostpointercapture',up);};
+  const menu=()=>TC.mode==='menu';
+  bind(d.querySelector('#bA'),()=>menu()?'Enter':'KeyJ');bind(d.querySelector('#bB'),()=>menu()?'Escape':'KeyK');bind(d.querySelector('#bJ'),()=>'Space');bind(d.querySelector('#bS'),()=>'KeyL');
+  bind(d.querySelector('#bP'),()=>'KeyP');bind(d.querySelector('#bQ'),()=>'KeyQ');bind(d.querySelector('#bR'),()=>TC.mode==='tut'?'Enter':'KeyR');bind(d.querySelector('#bE'),()=>TC.mode==='train'?'KeyE':'Escape');
+  let yc=0;bind(d.querySelector('#bY'),()=>(yc++%2)?'KeyN':'KeyY');
+  pad.querySelectorAll('.b').forEach(b=>bind(b,()=>b.dataset.code));
+  // stick
+  const st=d.querySelector('#stick'),kn=d.querySelector('#knob');let sid=null;
+  const setDir=(dx,dy)=>{const m=Math.hypot(dx,dy),T=.38;const want={KeyA:dx<-T,KeyD:dx>T,KeyW:dy<-.55,KeyS:dy>.55};if(m<T)for(const k in want)want[k]=false;for(const k in want)tKey(k,want[k]);};
+  const mv=e=>{const r=st.getBoundingClientRect(),cx=r.left+r.width/2,cy=r.top+r.height/2;let dx=(e.clientX-cx)/(r.width/2),dy=(e.clientY-cy)/(r.height/2);const m=Math.hypot(dx,dy);if(m>1){dx/=m;dy/=m;}kn.style.transform=`translate(${dx*70}%,${dy*70}%)`;setDir(dx,dy);};
+  st.addEventListener('pointerdown',e=>{e.preventDefault();sid=e.pointerId;st.setPointerCapture(sid);mv(e);});st.addEventListener('pointermove',e=>{if(e.pointerId===sid)mv(e);});
+  const end=e=>{if(e.pointerId!==sid)return;sid=null;kn.style.transform='';setDir(0,0);};st.addEventListener('pointerup',end);st.addEventListener('pointercancel',end);
+  // tap canvas: intro start
+  cv.addEventListener('pointerdown',e=>{if(G.state==='intro'){tKey('Space',true);setTimeout(()=>tKey('Space',false),60);}});}
+function touchUI(){if(!TC.on)return;tInit();const st=G.state,fight=['countdown','fight','gameover'].includes(st)||(st==='netlobby'&&G.practice),mode=st==='intro'?'none':st==='netjoin'?'pad':fight?(G.paused?'pause':G.mode==='train'?'train':G.mode==='tut'?'tut':'fight'):'menu';
+  const port=innerHeight>innerWidth*1.05;TC.rot.style.display=port?'flex':'none';
+  const sig=mode+G.paused;if(sig===TC.sig)return;TC.sig=sig;TC.mode=mode;for(const k in TC.held)tKey(k,false);const $=id=>TC.el.querySelector(id),show=(id,v)=>{$(id).style.display=v?'':'none';};
+  TC.el.style.display=mode==='none'?'none':'block';$('#pad').style.display=mode==='pad'?'grid':'none';show('#stick',mode!=='pad');
+  const f=mode==='fight'||mode==='train'||mode==='tut';show('#bA',mode!=='pad'&&mode!=='pause');show('#bB',mode!=='pad'&&mode!=='pause');show('#bJ',f);show('#bS',f);show('#bP',f||mode==='pause');show('#bQ',mode==='train'||mode==='pause');show('#bR',mode==='train'||mode==='tut');show('#bE',mode==='train'||mode==='tut');show('#bY',mode==='menu'&&st==='select');
+  $('#bA').textContent=f?'공격':'확인';$('#bB').textContent=f?'필살':'뒤로';$('#bP').textContent=mode==='pause'?'계속':'❚❚ 멈춤';$('#bQ').textContent=mode==='pause'?'메뉴로':'캐릭터';$('#bR').textContent=mode==='tut'?'단계 넘기기':'초기화';$('#bE').textContent=mode==='tut'?'튜토리얼 끝':'조작법';}
+addEventListener('touchstart',()=>{if(!TC.on){TC.on=true;TC.sig='';}},{passive:true});
+if(navigator.maxTouchPoints>0&&matchMedia('(pointer:coarse)').matches)TC.on=true;
 function uiKey(code){
   if(code==='KeyM'){setMute(!muted);return;}
   const up=['KeyW','ArrowUp'].includes(code),dn=['KeyS','ArrowDown'].includes(code),lf=['KeyA','ArrowLeft'].includes(code),rt=['KeyD','ArrowRight'].includes(code);
@@ -2288,6 +2336,7 @@ function drawProfile(){
 /* ================= MAIN LOOP ================= */
 let last=performance.now(),acc=0;
 function frame(now){
+  touchUI();
   const rdt=clamp((now-last)/1000,0,.05);last=now;G.rt+=rdt;
   ctx.setTransform(DPR,0,0,DPR,0,0);
   if(G.state==='intro'){drawIntro(rdt);updateParticles&&0;}
