@@ -2543,7 +2543,8 @@ function drawPreview(f,px,py,sc){f.state='idle';f.ground=true;f.squash+=(1-f.squ
   const c=G.cam,sv={x:c.x,y:c.y,z:c.z};c.x=0;c.y=0;c.z=sc;f.x=(px-W/2)/sc;f.y=(py-H/2)/sc;drawFighter(f);Object.assign(c,sv);}
 let UNL=new Set();try{const a=JSON.parse(localStorage.getItem('oksang-unlock-v1')||'[]');if(Array.isArray(a))a.forEach(x=>typeof x==='string'&&UNL.add(x));}catch(e){}
 function saveUnl(){try{localStorage.setItem('oksang-unlock-v1',JSON.stringify([...UNL]));}catch(e){}}
-function isUnl(i){const c=CH[i];return !!c&&(c.hidden||c.id==='A'||UNL.has(c.id));}
+const FREE=['A','B','C'];
+function isUnl(i){const c=CH[i];return !!c&&(c.hidden||FREE.includes(c.id)||UNL.has(c.id));}
 function unlList(){const a=[];CH.forEach((c,i)=>{if(!c.hidden&&isUnl(i))a.push(i);});return a;}
 function fixSel(){const slots=G.mode==='net'?[NET.me]:G.mode==='2p'?[0,1]:[0];for(const s of slots){const v=G.sel[s];if(v==null||(v<CH.length&&!isUnl(v)))G.sel[s]=0;}if(G.mode==='chal')G.sel[1]=G.chalI;}
 const STRAW={...CH[0],id:'Z',name:'짚 인형',title:'연습용 허수아비',straw:1,weight:100,faces:{norm:'z_norm',hurt:'z_hurt',ko:'z_hurt',win:'z_norm'},skin:['#e8c77a','#c9a24e','#8a6a2a'],
